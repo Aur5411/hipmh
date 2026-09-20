@@ -2,7 +2,7 @@
 <resources>
     <string name="app_name">嘻皮漫画</string>
     <string name="title_settings">设置</string>
-    <string name="title_history">历史与收藏</string>
+    <string name="title_history">浏览历史</string>
     <string name="nav_back">返回</string>
     <string name="nav_forward">前进</string>
     <string name="nav_home">首页</string>

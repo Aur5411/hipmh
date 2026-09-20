@@ -20,11 +20,8 @@ public class ListActivity extends AppCompatActivity {
     private Store store;
     private ListView list;
     private TextView empty;
-    private Button tabHist;
-    private Button tabFav;
     private Button btnClear;
 
-    private String table = "hist";
     private List<Store.Item> items = new ArrayList<>();
 
     @Override
@@ -35,12 +32,7 @@ public class ListActivity extends AppCompatActivity {
         store = new Store(this);
         list = findViewById(R.id.list);
         empty = findViewById(R.id.empty);
-        tabHist = findViewById(R.id.tabHist);
-        tabFav = findViewById(R.id.tabFav);
         btnClear = findViewById(R.id.btnClear);
-
-        tabHist.setOnClickListener(v -> switchTab("hist"));
-        tabFav.setOnClickListener(v -> switchTab("fav"));
 
         list.setOnItemClickListener(new AdapterView.OnItemClickListener() {
             @Override
@@ -59,7 +51,7 @@ public class ListActivity extends AppCompatActivity {
             @Override
             public boolean onItemLongClick(AdapterView<?> p, View v, int pos, long id) {
                 if (pos < 0 || pos >= items.size()) return true;
-                store.remove(table, items.get(pos).url);
+                store.remove("hist", items.get(pos).url);
                 reload();
                 Toast.makeText(ListActivity.this, "已删除", Toast.LENGTH_SHORT).show();
                 return true;
@@ -67,26 +59,16 @@ public class ListActivity extends AppCompatActivity {
         });
 
         btnClear.setOnClickListener(v -> {
-            store.clear(table);
+            store.clear("hist");
             reload();
-            Toast.makeText(ListActivity.this, "已清空", Toast.LENGTH_SHORT).show();
+            Toast.makeText(ListActivity.this, "历史已清空", Toast.LENGTH_SHORT).show();
         });
 
-        switchTab("hist");
-    }
-
-    private void switchTab(String t) {
-        table = t;
-        boolean hist = "hist".equals(t);
-        tabHist.setBackgroundResource(hist ? R.drawable.bg_tab_on : R.drawable.bg_tab_off);
-        tabFav.setBackgroundResource(hist ? R.drawable.bg_tab_off : R.drawable.bg_tab_on);
-        tabHist.setTextColor(getResources().getColor(hist ? R.color.bg : R.color.text2));
-        tabFav.setTextColor(getResources().getColor(hist ? R.color.text2 : R.color.bg));
         reload();
     }
 
     private void reload() {
-        items = store.list(table);
+        items = store.list("hist");
         List<String> titles = new ArrayList<>();
         for (Store.Item it : items) {
             titles.add(it.title == null ? it.url : it.title);
@@ -97,5 +79,6 @@ public class ListActivity extends AppCompatActivity {
         boolean e = items.isEmpty();
         empty.setVisibility(e ? View.VISIBLE : View.GONE);
         list.setVisibility(e ? View.GONE : View.VISIBLE);
+        empty.setText("暂无浏览记录");
     }
 }

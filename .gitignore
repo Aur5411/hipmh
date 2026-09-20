@@ -4,6 +4,9 @@ build/
 outputs/
 app/build/
 
+# 工程内本地 Gradle user home（本机沙箱编译用，含大量缓存）
+.gradle-home/
+
 # ===== 本地/敏感配置（绝不提交）=====
 local.properties
 keystore.properties

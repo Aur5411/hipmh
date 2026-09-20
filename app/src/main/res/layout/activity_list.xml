@@ -5,33 +5,14 @@
     android:background="@color/bg"
     android:orientation="vertical">
 
-    <LinearLayout
+    <TextView
         android:layout_width="match_parent"
         android:layout_height="48dp"
         android:background="@color/surface"
-        android:orientation="horizontal">
-
-        <Button
-            android:id="@+id/tabHist"
-            android:layout_width="0dp"
-            android:layout_height="match_parent"
-            android:layout_weight="1"
-            android:background="@drawable/bg_tab_on"
-            android:text="浏览历史"
-            android:textColor="#FF0F1115"
-            android:textSize="14sp" />
-
-        <Button
-            android:id="@+id/tabFav"
-            android:layout_width="0dp"
-            android:layout_height="match_parent"
-            android:layout_weight="1"
-            android:background="@drawable/bg_tab_off"
-            android:text="我的收藏"
-            android:textColor="#FF9AA0A6"
-            android:textSize="14sp" />
-
-    </LinearLayout>
+        android:gravity="center"
+        android:text="浏览历史"
+        android:textColor="@color/text"
+        android:textSize="15sp" />
 
     <ListView
         android:id="@+id/list"
@@ -47,7 +28,7 @@
         android:layout_height="0dp"
         android:layout_weight="1"
         android:gravity="center"
-        android:text="暂无记录"
+        android:text="暂无浏览记录"
         android:textColor="@color/text2"
         android:textSize="14sp"
         android:visibility="gone" />
@@ -57,7 +38,7 @@
         android:layout_width="match_parent"
         android:layout_height="48dp"
         android:background="@color/surface"
-        android:text="清空当前列表"
+        android:text="清空浏览历史"
         android:textColor="@color/danger"
         android:textSize="14sp" />
 

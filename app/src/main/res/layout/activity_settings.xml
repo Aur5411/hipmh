@@ -278,16 +278,6 @@
             android:textSize="14sp" />
 
         <Button
-            android:id="@+id/btnClearFav"
-            android:layout_width="match_parent"
-            android:layout_height="48dp"
-            android:layout_marginTop="1dp"
-            android:background="@color/surface"
-            android:text="清空我的收藏"
-            android:textColor="@color/text"
-            android:textSize="14sp" />
-
-        <Button
             android:id="@+id/btnLine"
             android:layout_width="match_parent"
             android:layout_height="48dp"

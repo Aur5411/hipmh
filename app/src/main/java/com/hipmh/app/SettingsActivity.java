@@ -49,11 +49,6 @@ public class SettingsActivity extends AppCompatActivity {
             Toast.makeText(this, "历史已清空", Toast.LENGTH_SHORT).show();
         });
 
-        findViewById(R.id.btnClearFav).setOnClickListener(v -> {
-            new Store(SettingsActivity.this).clear("fav");
-            Toast.makeText(this, "收藏已清空", Toast.LENGTH_SHORT).show();
-        });
-
         TextView crash = findViewById(R.id.tvCrash);
         try {
             java.io.File f = new java.io.File(getFilesDir(), "last_crash.txt");
