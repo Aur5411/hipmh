@@ -1,0 +1,101 @@
+package com.hipmh.app;
+
+import android.content.Intent;
+import android.os.Bundle;
+import android.view.View;
+import android.widget.AdapterView;
+import android.widget.ArrayAdapter;
+import android.widget.Button;
+import android.widget.ListView;
+import android.widget.TextView;
+import android.widget.Toast;
+
+import androidx.appcompat.app.AppCompatActivity;
+
+import java.util.ArrayList;
+import java.util.List;
+
+public class ListActivity extends AppCompatActivity {
+
+    private Store store;
+    private ListView list;
+    private TextView empty;
+    private Button tabHist;
+    private Button tabFav;
+    private Button btnClear;
+
+    private String table = "hist";
+    private List<Store.Item> items = new ArrayList<>();
+
+    @Override
+    protected void onCreate(Bundle b) {
+        super.onCreate(b);
+        setContentView(R.layout.activity_list);
+
+        store = new Store(this);
+        list = findViewById(R.id.list);
+        empty = findViewById(R.id.empty);
+        tabHist = findViewById(R.id.tabHist);
+        tabFav = findViewById(R.id.tabFav);
+        btnClear = findViewById(R.id.btnClear);
+
+        tabHist.setOnClickListener(v -> switchTab("hist"));
+        tabFav.setOnClickListener(v -> switchTab("fav"));
+
+        list.setOnItemClickListener(new AdapterView.OnItemClickListener() {
+            @Override
+            public void onItemClick(AdapterView<?> p, View v, int pos, long id) {
+                if (pos < 0 || pos >= items.size()) return;
+                String u = items.get(pos).url;
+                Intent i = new Intent(ListActivity.this, MainActivity.class);
+                i.putExtra("url", u);
+                i.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
+                startActivity(i);
+                finish();
+            }
+        });
+
+        list.setOnItemLongClickListener(new AdapterView.OnItemLongClickListener() {
+            @Override
+            public boolean onItemLongClick(AdapterView<?> p, View v, int pos, long id) {
+                if (pos < 0 || pos >= items.size()) return true;
+                store.remove(table, items.get(pos).url);
+                reload();
+                Toast.makeText(ListActivity.this, "已删除", Toast.LENGTH_SHORT).show();
+                return true;
+            }
+        });
+
+        btnClear.setOnClickListener(v -> {
+            store.clear(table);
+            reload();
+            Toast.makeText(ListActivity.this, "已清空", Toast.LENGTH_SHORT).show();
+        });
+
+        switchTab("hist");
+    }
+
+    private void switchTab(String t) {
+        table = t;
+        boolean hist = "hist".equals(t);
+        tabHist.setBackgroundResource(hist ? R.drawable.bg_tab_on : R.drawable.bg_tab_off);
+        tabFav.setBackgroundResource(hist ? R.drawable.bg_tab_off : R.drawable.bg_tab_on);
+        tabHist.setTextColor(getResources().getColor(hist ? R.color.bg : R.color.text2));
+        tabFav.setTextColor(getResources().getColor(hist ? R.color.text2 : R.color.bg));
+        reload();
+    }
+
+    private void reload() {
+        items = store.list(table);
+        List<String> titles = new ArrayList<>();
+        for (Store.Item it : items) {
+            titles.add(it.title == null ? it.url : it.title);
+        }
+        ArrayAdapter<String> ad = new ArrayAdapter<>(this,
+                android.R.layout.simple_list_item_1, titles);
+        list.setAdapter(ad);
+        boolean e = items.isEmpty();
+        empty.setVisibility(e ? View.VISIBLE : View.GONE);
+        list.setVisibility(e ? View.GONE : View.VISIBLE);
+    }
+}

@@ -1,0 +1,23 @@
+# ===== 构建产物 =====
+.gradle/
+build/
+outputs/
+app/build/
+
+# ===== 本地/敏感配置（绝不提交）=====
+local.properties
+keystore.properties
+*.keystore
+*.jks
+
+# ===== 交付产物 =====
+*.apk
+*.zip
+
+# ===== IDE / 系统 =====
+.idea/
+*.iml
+.DS_Store
+captures/
+.externalNativeBuild/
+.cxx/
