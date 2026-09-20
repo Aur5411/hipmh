@@ -2,7 +2,7 @@
 """打包交付：APK + 同名 zip(内装 APK) + 工程源码 zip(排除 .git/.gradle/build) 放入桌面 1 文件夹。"""
 import os, shutil, zipfile, glob
 
-VER = "1.3"
+VER = "1.5"
 NAME = "嘻皮漫画"
 PROJ = r"C:\Users\Administrator\WorkBuddy\2026-09-19-23-37-20\HipManga"
 DEST = r"C:\Users\Administrator\Desktop\1"
@@ -26,7 +26,8 @@ with zipfile.ZipFile(zip_apk, "w", zipfile.ZIP_DEFLATED) as z:
 zip_src = os.path.join(DEST, "%s-v%s-工程源码.zip" % (NAME, VER))
 EXCLUDE_DIRS = {".git", ".gradle", "build", ".idea", ".workbuddy", ".gradle-home",
                 "outputs", ".cache", "node_modules"}
-EXCLUDE_FILES = {"local.properties"}
+EXCLUDE_FILES = {"local.properties", "keystore.properties", "hipmh.keystore",
+                  "build_v14.log", "build.log", "build_log.txt"}
 # 一次性排查脚本（diag_*/probe_*/diagN_*）不进源码 zip，只保留正式测试与构建脚本
 EXCLUDE_PREFIXES = ("diag_", "probe", "probe_", "diag")
 n = 0

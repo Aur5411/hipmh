@@ -12,6 +12,9 @@ import java.net.HttpURLConnection;
 import java.net.URL;
 import java.security.MessageDigest;
 import java.util.Locale;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.Future;
+import java.util.concurrent.FutureTask;
 
 public final class ResCache {
 
@@ -83,8 +86,33 @@ public final class ResCache {
         return null;
     }
 
+    // 在途去重：同一 URL 的并发下载（WebView 的 shouldInterceptRequest 与预加载线程池）
+    // 合并为一次网络请求，避免重复带宽、并消除两个线程同时 save() 写同一文件导致缓存损坏。
+    private static final ConcurrentHashMap<String, Future<byte[]>> inflight = new ConcurrentHashMap<>();
+
     static byte[] fetch(String u, String ua, String ref) {
         if (dir == null) return null;
+        Future<byte[]> f = inflight.get(u);
+        if (f == null) {
+            FutureTask<byte[]> task = new FutureTask<>(() -> doFetch(u, ua, ref));
+            f = inflight.putIfAbsent(u, task);
+            if (f == null) {
+                f = task;
+                try {
+                    task.run();          // 获胜线程执行下载，其余等待者复用同一结果
+                } finally {
+                    inflight.remove(u);
+                }
+            }
+        }
+        try {
+            return f.get();             // doFetch 自带 10s/20s 超时，不会无限阻塞
+        } catch (Throwable ignore) {
+            return null;
+        }
+    }
+
+    private static byte[] doFetch(String u, String ua, String ref) {
         try {
             HttpURLConnection c = (HttpURLConnection) new URL(u).openConnection();
             c.setConnectTimeout(10000);

@@ -16,6 +16,7 @@ public final class Prefs {
     private static final String K_ZOOM = "text_zoom";
     private static final String K_CACHE = "cache_assets";
     private static final String K_LINE = "img_line";
+    private static final String K_PRELOAD = "preload_chapter";
 
     private final SharedPreferences sp;
 
@@ -85,5 +86,14 @@ public final class Prefs {
 
     void imgLine(String v) {
         sp.edit().putString(K_LINE, v).apply();
+    }
+
+    /** ★ v1.4：进入章节后，原生线程池并发预抓本章图片进 ResCache，翻页零等待 */
+    boolean preloadChapter() {
+        return sp.getBoolean(K_PRELOAD, true);
+    }
+
+    void preloadChapter(boolean v) {
+        sp.edit().putBoolean(K_PRELOAD, v).apply();
     }
 }

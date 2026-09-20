@@ -44,6 +44,12 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
 import java.util.Locale;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+
+import org.json.JSONArray;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -119,6 +125,17 @@ public class MainActivity extends AppCompatActivity {
 
     private volatile String uaCache = "";
     private volatile String refCache = "";
+
+    /** ★ v1.4：阅读页图片预加载线程池（并发抓图进 ResCache 磁盘缓存） */
+    private final ExecutorService preloadPool = Executors.newFixedThreadPool(8);
+    /** 已提交预加载的 URL 去重集合，避免重复提交 / 跨章节重抓 */
+    private final Set<String> preloadSeen = ConcurrentHashMap.newKeySet();
+
+    /** ★ v1.5：隐藏后台 WebView，用于「预抓下一章」—— 加载 reader.hipmh.top 的下一章页面，
+     *  复用站点自身 JS 解密 + 现有 readerJs 把下一章图片收集并预抓进共享 ResCache。 */
+    private WebView bgWeb;
+    /** 当前已安排后台预抓的下一章 hid（去重，避免重复 load） */
+    private String bgHid = "";
 
     /** assets/t2s.js 里的繁→简字符映射表（首次读取后缓存） */
     private static volatile String t2sMapJs = null;
@@ -329,18 +346,7 @@ public class MainActivity extends AppCompatActivity {
                     WebResourceResponse r = stripRedirectHijack(u);
                     if (r != null) return r;
                 }
-                if (prefs.cacheAssets() && ResCache.isCacheable(u)) {
-                    byte[] d = ResCache.get(u);
-                    if (d == null) d = ResCache.fetch(u, uaCache, refCache);
-                    if (d != null && d.length > 0) {
-                        try {
-                            return new WebResourceResponse(ResCache.mime(u), "utf-8",
-                                    new ByteArrayInputStream(d));
-                        } catch (Throwable ignore) {
-                        }
-                    }
-                }
-                return null;
+                return interceptRes(req);
             }
         });
 
@@ -1480,12 +1486,55 @@ public class MainActivity extends AppCompatActivity {
                     + "setTimeout(function(){conv(document.body);},500);},false);}catch(x){}});"
                     + "})();";
 
-    private void injectReader(String u) {
-        if (u == null || !(u.contains("/chapter/") || u.contains("/chapter/go"))) return;
-        web.evaluateJavascript(readerJs(), null);
+    /** 资源/缓存拦截（主 WebView 与隐藏后台 WebView 共用）：
+     *  广告/推广直接返回空；可缓存资源命中 ResCache 直接回放，未命中则下载并落盘。 */
+    private WebResourceResponse interceptRes(WebResourceRequest req) {
+        String u = req.getUrl() != null ? req.getUrl().toString() : "";
+        if (u.isEmpty()) return null;
+        if (prefs.adBlock() && isAd(u)) return empty();
+        if (isPromoImg(u)) return empty();
+        if (ResCache.isCacheable(u) && (prefs.cacheAssets() || prefs.preloadChapter())) {
+            byte[] d = ResCache.get(u);
+            if (d == null) d = ResCache.fetch(u, uaCache, refCache);
+            if (d != null && d.length > 0) {
+                try {
+                    return new WebResourceResponse(ResCache.mime(u), "utf-8",
+                            new ByteArrayInputStream(d));
+                } catch (Throwable ignore) {
+                }
+            }
+        }
+        return null;
     }
 
-    private String readerJs() {
+    private void injectReader(String u) {
+        injectReaderInto(web, u, true);
+    }
+
+    /** 往指定 WebView 注入阅读页预加载脚本。
+     *  allowNext=true（主 WebView）：额外抓取「下一章 hid」触发后台预抓；
+     *  allowNext=false（隐藏后台 WebView）：只收集+预抓本章图片，不级联。 */
+    private void injectReaderInto(WebView w, String u, boolean allowNext) {
+        if (u == null || !(u.contains("/chapter/") || u.contains("/chapter/go"))) return;
+        w.evaluateJavascript(readerJs(allowNext), null);
+    }
+
+    private String readerJs(boolean allowNext) {
+        // ★ v1.5：allowNext=true（主 WebView）时，阅读页 JS 顺带请求站点章节 API 拿 next_hid，
+        //   交给原生去隐藏后台 WebView 预抓下一章图片（翻章零等待）。
+        String nextBlock = allowNext ? (
+                "try{var __re=document.querySelector('[data-api-base-url]');"
+                + "var __ab=__re?__re.getAttribute('data-api-base-url'):'';"
+                + "var __ah=__re?__re.getAttribute('data-api-hid'):'';"
+                + "if(__ab&&__ah&&window.HipApp&&HipApp.preloadNext){"
+                + "fetch(__ab+'/v2/chapter?hid='+encodeURIComponent(__ah))"
+                + ".then(function(r){return r.json();})"
+                + ".then(function(j){try{var __d=j&&j.data?j.data:null;"
+                + "var __nh=__d?__d.next_hid:null;"
+                + "if(__nh&&window.HipApp&&HipApp.preloadNext)HipApp.preloadNext(__nh);}"
+                + "catch(e){}}).catch(function(e){});}"
+                + "}catch(e){}"
+        ) : "";
         return "(function(){"
                 + "try{localStorage.setItem('chapterApiLine','" + prefs.imgLine() + "');}catch(e){}"
                 // ★ v1.2：去掉 __hipReady 一次性守卫 → Astro 软导航后阅读页也能重新挂
@@ -1544,9 +1593,31 @@ public class MainActivity extends AppCompatActivity {
                 // 进入阅读页即沉浸：模拟一次点击，触发站内隐藏顶栏/底栏（setNavVisible(false)）
                 + "setTimeout(function(){try{"
                 + "var c=document.getElementById('chapcontent')||document.body;"
-                + "c.dispatchEvent(new MouseEvent('click',{bubbles:true,cancelable:true,view:window}));"
-                + "}catch(e){}},400);"
-                + "})();";
++ "c.dispatchEvent(new MouseEvent('click',{bubbles:true,cancelable:true,view:window}));"
++ "}catch(e){}},400);"
+// ★ v1.4：阅读页图片预加载 —— 收集图片 URL 交给原生线程池并发抓进 ResCache，
+//   翻页时 WebView 直接从磁盘缓存取、零网络等待（懒加载图也按 data-src 取真地址）
++ "function __hipImgUrl(el){var c=el.getAttribute('data-src')||el.getAttribute('data-original')||"
++ "el.getAttribute('data-lazy-src')||el.getAttribute('data-lazy')||el.getAttribute('data-url')||"
++ "el.currentSrc||el.src||'';if(!c||c.indexOf('data:')===0||c.indexOf('blob:')===0)return '';"
++ "try{return new URL(c,location.href).href;}catch(e){return c;}}"
++ "function __hipCollectImgs(){if(!location.pathname||location.pathname.indexOf('/chapter/')<0)return '[]';"
++ "var r=document.getElementById('chapcontent');"
++ "if(!r){var f=document.querySelector('.chapter-image,.chapter-img-container,.reader-content');r=f||document.body;}"
++ "var ns=r.querySelectorAll('img');var out=[];for(var i=0;i<ns.length;i++){"
++ "var u=__hipImgUrl(ns[i]);if(u)out.push(u);}return JSON.stringify(out);}"
++ "function __hipPreload(){try{if(window.HipApp&&HipApp.preloadImages)"
++ "HipApp.preloadImages(__hipCollectImgs());}catch(e){}}"
++ "__hipPreload();setTimeout(__hipPreload,800);setTimeout(__hipPreload,2000);setTimeout(__hipPreload,4000);"
++ "var __hipPlT=0;try{var po=new MutationObserver(function(){var n=Date.now();"
++ "if(n-__hipPlT<600)return;__hipPlT=n;__hipPreload();});"
++ "var ph=document.getElementById('chapcontent')||document.querySelector('.chapter-image,.chapter-img-container')||document.body;"
++ "po.observe(ph,{childList:true,subtree:true});}catch(e){}"
++ "['astro:after-swap','astro:page-load','popstate','hashchange'].forEach(function(ev){"
++ "try{document.addEventListener(ev,function(){setTimeout(__hipPreload,200);"
++ "setTimeout(__hipPreload,1200);},false);}catch(x){}});"
++ nextBlock
++ "})();";
     }
 
     private void setupActions() {
@@ -1985,6 +2056,16 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onDestroy() {
         try {
+            if (bgWeb != null) {
+                bgWeb.stopLoading();
+                bgWeb.setWebViewClient(null);
+                bgWeb.setWebChromeClient(null);
+                bgWeb.destroy();
+                bgWeb = null;
+            }
+        } catch (Throwable ignore) {
+        }
+        try {
             if (web != null) {
                 web.stopLoading();
                 web.setWebViewClient(null);
@@ -1994,6 +2075,66 @@ public class MainActivity extends AppCompatActivity {
         } catch (Throwable ignore) {
         }
         super.onDestroy();
+    }
+
+    /** 懒创建隐藏后台 WebView（与主 WebView 共享 JsBridge / ResCache / UA）。
+     *  它永不被加入视图层级，仅用于后台加载下一章并把图片预抓进共享 ResCache。 */
+    private void ensureBgWeb() {
+        if (bgWeb != null) return;
+        try {
+            bgWeb = new WebView(this);
+            WebSettings s = bgWeb.getSettings();
+            s.setJavaScriptEnabled(true);
+            s.setDomStorageEnabled(true);
+            s.setDatabaseEnabled(true);
+            s.setLoadWithOverviewMode(true);
+            s.setUseWideViewPort(true);
+            s.setCacheMode(WebSettings.LOAD_DEFAULT);
+            s.setUserAgentString(uaCache);
+            s.setMediaPlaybackRequiresUserGesture(false);
+            try {
+                s.setMixedContentMode(WebSettings.MIXED_CONTENT_COMPATIBILITY_MODE);
+            } catch (Throwable ignore) {
+            }
+            try {
+                s.setOffscreenPreRaster(true);
+            } catch (Throwable ignore) {
+            }
+            try {
+                s.setSafeBrowsingEnabled(false);
+            } catch (Throwable ignore) {
+            }
+            bgWeb.addJavascriptInterface(new JsBridge(), "HipApp");
+            bgWeb.setWebViewClient(new WebViewClient() {
+                @Override
+                public void onPageFinished(WebView v, String u) {
+                    // 只收集+预抓本章图片，不级联预抓（allowNext=false）
+                    injectReaderInto(v, u, false);
+                }
+
+                @Override
+                public WebResourceResponse shouldInterceptRequest(WebView v,
+                                                                 WebResourceRequest req) {
+                    return interceptRes(req);
+                }
+            });
+        } catch (Throwable ignore) {
+        }
+    }
+
+    /** ★ v1.5：主阅读页 JS 拿到下一章 hid 后回调 —— 后台预抓下一章图片。
+     *  翻章时主 WebView 命中共享 ResCache 磁盘缓存，零网络等待。 */
+    private void preloadNextChapter(String nextHid) {
+        if (!prefs.preloadChapter()) return;
+        if (nextHid == null || nextHid.isEmpty()) return;
+        if (nextHid.equals(bgHid)) return;                 // 已安排/正在预抓同一章
+        // 不要把「当前正在读的章」误当成下一章（极端情况）
+        if (readingMode && web.getUrl() != null && web.getUrl().contains(nextHid)) return;
+        bgHid = nextHid;
+        ensureBgWeb();
+        if (bgWeb != null) {
+            bgWeb.loadUrl("https://reader.hipmh.top/chapter/" + nextHid);
+        }
     }
 
     public final class JsBridge {
@@ -2042,6 +2183,47 @@ public class MainActivity extends AppCompatActivity {
                 } catch (Throwable ignore) {
                 }
             });
+        }
+
+        /**
+         * ★ v1.4：阅读页 JS 收集到的图片 URL 列表传过来（JSON 数组）。
+         * 原生用 8 线程池并发预抓进 ResCache，翻页时直接从磁盘取、零网络等待。
+         * 已缓存 / 已提交 / 非图片 / 广告域名一律跳过，避免重复与浪费。
+         */
+        @JavascriptInterface
+        public void preloadImages(String json) {
+            if (!prefs.preloadChapter()) return;
+            if (json == null || json.isEmpty()) return;
+            try {
+                JSONArray arr = new JSONArray(json);
+                final int n = arr.length();
+                for (int i = 0; i < n; i++) {
+                    String u = arr.optString(i);
+                    if (u == null || u.isEmpty()) continue;
+                    if (!u.startsWith("http")) continue;
+                    if (MainActivity.this.isAd(u) || MainActivity.this.isPromoImg(u)) continue;
+                    if (!ResCache.isCacheable(u)) continue;
+                    if (ResCache.get(u) != null) continue;   // 已缓存，跳过
+                    if (!preloadSeen.add(u)) continue;       // 已提交，跳过
+                    final String fu = u;
+                    preloadPool.execute(() -> {
+                        try {
+                            ResCache.fetch(fu, MainActivity.this.uaCache, MainActivity.this.refCache);
+                        } catch (Throwable ignore) {
+                        }
+                    });
+                }
+            } catch (Throwable ignore) {
+            }
+        }
+
+        /**
+         * ★ v1.5：阅读页 JS 从章节 API 拿到下一章 hid 后回调，
+         * 由原生启动隐藏后台 WebView 预抓下一章图片。
+         */
+        @JavascriptInterface
+        public void preloadNext(String nextHid) {
+            ui.post(() -> MainActivity.this.preloadNextChapter(nextHid));
         }
     }
 }

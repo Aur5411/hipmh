@@ -166,7 +166,7 @@ targets['hip_hist'] = java_str_to_js(b)
 b = find_field('T2S_JS')
 targets['hip_t2s'] = java_str_to_js(b)
 
-b = find_method('String readerJs() {')
+b = find_method('String readerJs(boolean allowNext) {')
 targets['hip_reader'] = java_str_to_js(b)
 
 ok = True

@@ -22,6 +22,7 @@ public class SettingsActivity extends AppCompatActivity {
         bindSwitch(R.id.swKeep, prefs.keepScreen(), v -> prefs.keepScreen(v));
         bindSwitch(R.id.swAd, prefs.adBlock(), v -> prefs.adBlock(v));
         bindSwitch(R.id.swVol, prefs.volumePage(), v -> prefs.volumePage(v));
+        bindSwitch(R.id.swPreload, prefs.preloadChapter(), v -> prefs.preloadChapter(v));
         bindSwitch(R.id.swImm, prefs.immersiveRead(), v -> prefs.immersiveRead(v));
         bindSwitch(R.id.swDesk, prefs.desktopUa(), v -> prefs.desktopUa(v));
         bindSwitch(R.id.swCache, prefs.cacheAssets(), v -> prefs.cacheAssets(v));

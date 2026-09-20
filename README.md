@@ -2,7 +2,7 @@
 
 [m.hipmh.com](https://m.hipmh.com/) 的 Android 客户端，基于原生 WebView 封装。
 
-当前版本 **v1.3**（versionCode 13）。
+当前版本 **v1.5**（versionCode 15）。
 
 ## 功能特性
 
@@ -13,6 +13,18 @@
   （`g-mh.com` / `18gallery.com`）、隐藏侧边栏与历史页的「登入」提示块
 - **阅读器返回优化**：在阅读页按返回键回到**作品详情页**（而非退出软件），
   并在右上角提供「返回书籍」悬浮按钮
+- **★ 阅读页图片预加载（v1.4）**：进入章节后，原生 **8 线程池并发**把本章图片提前抓进磁盘缓存
+  （`ResCache`），翻页时 WebView 直接从本地取、几乎不转圈。懒加载图按 `data-src` /
+  `data-original` / `data-lazy-src` 取真地址；滚动新增的图片也会自动增量预加载。
+  设置页「预加载本章图片」开关，默认开启（`ResCache` 上限 120MB 自动清理）。
+- **★ 在途去重 + 下一章预抓（v1.5）**：
+  - **在途去重**：`ResCache.fetch` 用 `ConcurrentHashMap<String, Future<byte[]>>` 合并
+    同一 URL 的并发下载（WebView 的 `shouldInterceptRequest` 与预加载线程池），
+    消除重复带宽与两个线程同时写同一文件导致的缓存损坏。
+  - **下一章预抓**：阅读页 JS 请求站点章节 API 拿到 `next_hid`，原生启动一个**隐藏后台 WebView**
+    加载 `reader.hipmh.top/chapter/<next_hid>`，复用站点自身 JS 解密 + 现有 `readerJs`
+    把下一章图片收集并预抓进**共享 `ResCache`**。翻章时主 WebView 命中磁盘缓存、**零网络等待**。
+    后台 WebView 永不被加入视图层级、复用同一 `JsBridge`/`ResCache`/`UA`，`onDestroy` 时回收。
 - **繁体转简体**：站点仅提供繁体内容，App 本地将页面文本转为简体（默认开启，内置 4700+ 字映射表）
 - **沉浸式阅读**：进入章节自动隐藏站内顶栏/底栏，点击屏幕唤出工具栏
 - **滚动穿透修复**：章节目录、设置抽屉打开时锁定背景滚动
@@ -72,6 +84,7 @@ python test_css.py          # 注入 CSS 规则解析与选择器核查
 python test_promo.py        # 两个「免费图库」推广卡
 python test_signin.py       # 侧栏/历史页「登入」块
 python test_reader_back.py  # 阅读器返回 URL 反推（含端到端校验）
+python test_preload.py      # 阅读页图片预加载（源码接线 + URL 收集算法）
 python verify_apk.py        # 产物 dex 符号核对
 node test_v107.js           # 注入脚本桩 DOM 行为回归
 node test_shelf.js          # 书架判定（真实站点链接数据）

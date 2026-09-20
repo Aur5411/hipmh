@@ -42,6 +42,15 @@ MUST = [
     "data-navbar-sidebar-signin", "navbar-sidebar-user-not-authed",
     # 搜索/记录入口
     "m.hipmh.com/search", "m.hipmh.com/history",
+    # ★ v1.4：阅读页图片预加载（多线程并发抓进 ResCache）
+    "preloadImages", "preloadChapter", "preload_chapter",
+    "preloadPool", "preloadSeen", "newFixedThreadPool",
+    "__hipCollectImgs", "__hipPreload", "__hipImgUrl",
+    "ResCache", "isCacheable", "/chapter/", "MutationObserver",
+    # ★ v1.5：在途去重 + 下一章预抓（隐藏后台 WebView）
+    "inflight", "putIfAbsent", "FutureTask", "doFetch",
+    "preloadNext", "preloadNextChapter", "ensureBgWeb",
+    "bgWeb", "interceptRes", "injectReaderInto", "readerJs",
 ]
 # 必须消失（书架/收藏功能已删）
 GONE = [
