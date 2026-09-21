@@ -38,7 +38,7 @@
         <activity
             android:name=".ListActivity"
             android:configChanges="orientation|screenSize|keyboardHidden"
-            android:label="@string/title_history" />
+            android:label="@string/title_shelf" />
 
         <activity
             android:name=".SettingsActivity"

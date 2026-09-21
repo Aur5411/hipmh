@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  ★ v1.9.1：书架列表单行 —— 封面缩略图 + 标题 + 状态。
+  修正点：ListView 的行根布局必须是固定高的水平 LinearLayout，
+  且封面用固定 dp、文字列用 layout_weight=1 + gravity=center_vertical，
+  否则条目高度会随文字行数抖动、整行被挤到中间（用户看到的「布局是乱的」）。
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="96dp"
+    android:background="?android:attr/selectableItemBackground"
+    android:gravity="center_vertical"
+    android:orientation="horizontal"
+    android:paddingLeft="14dp"
+    android:paddingRight="14dp">
+
+    <ImageView
+        android:id="@+id/cover"
+        android:layout_width="52dp"
+        android:layout_height="72dp"
+        android:background="@color/surface"
+        android:contentDescription="@string/shelf_cover_desc"
+        android:scaleType="centerCrop" />
+
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginLeft="14dp"
+        android:layout_weight="1"
+        android:gravity="center_vertical"
+        android:orientation="vertical">
+
+        <TextView
+            android:id="@+id/tv_title"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:ellipsize="end"
+            android:maxLines="2"
+            android:textColor="@color/text"
+            android:textSize="15sp" />
+
+        <TextView
+            android:id="@+id/tv_state"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="5dp"
+            android:textSize="12sp" />
+    </LinearLayout>
+
+</LinearLayout>

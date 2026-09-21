@@ -132,12 +132,28 @@ function isLoginPath(u) {
   const p = u.toLowerCase();
   if (/\/works\//.test(p)) return false;
   if (/\/search(\/|\?|$)/.test(p)) return false;
-  if (/\/history(\/|\?|$)/.test(p)) return false;
-  return /\/(login|register|signin|signup|dashboard|account|user\/profile)(\/|\?|$)/.test(p);
+  // ★ v1.7：/history 不再放行 —— 浏览记录功能已整体下线，
+  //   站点那个阅读记录页在本 App 内不再有入口（点作品走的是 /works/，不受影响）。
+  return /\/(login|register|signin|signup|dashboard|account|user\/profile|history)(\/|\?|$)/.test(p);
 }
 ck('/search 不被 isLoginPath 拦', isLoginPath('/search') === false);
 ck('/search 是 internal', isInternal('/search') === true);
 ck('https://m.xipmh.com/dashboard?lang=zh 被 isLoginPath 拦', isLoginPath('https://m.xipmh.com/dashboard?lang=zh') === true);
+ck('★v1.7 /history 现在被拦（浏览记录已下线）', isLoginPath('/history') === true);
+ck('★v1.7 /history/xxx 也被拦', isLoginPath('/history/1') === true);
+
+console.log();
+console.log('=== 测试 6：★v1.7 右上角「更多」被劫持为书架入口 ===');
+// 劫持逻辑：只认 data-navbar-more-trigger / aria-label="更多"
+const moreSel = e => e.tag === 'button'
+  && (e.attrs['data-navbar-more-trigger'] !== undefined || e.attrs['aria-label'] === '更多');
+const moreHit = els.filter(moreSel);
+ck('唯一命中「更多」按钮', moreHit.length === 1);
+ck('「更多」不是 <a>（是原生 button）', moreHit.length === 1 && moreHit[0].tag === 'button');
+// 不能误伤搜索
+ck('搜索 <button> 不被当成「更多」', moreSel(searchBtn) === false);
+// 「更多」不能被 hide 掉（它现在是我们的书架入口，必须可见可点）
+ck('「更多」不可被 CSS 隐藏', MY_CSS.filter(s => matches(s, moreHit[0])).length === 0);
 
 console.log();
 console.log('RESULT: ' + pass + ' passed, ' + fail + ' failed');

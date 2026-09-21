@@ -308,11 +308,11 @@
             android:textSize="13sp" />
 
         <Button
-            android:id="@+id/btnClearHistory"
+            android:id="@+id/btnClearFav"
             android:layout_width="match_parent"
             android:layout_height="48dp"
             android:background="@color/surface"
-            android:text="清空浏览历史"
+            android:text="清空我的书架"
             android:textColor="@color/text"
             android:textSize="14sp" />
 

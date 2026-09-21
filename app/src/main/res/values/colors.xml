@@ -8,4 +8,8 @@
     <color name="text2">#FF9AA0A6</color>
     <color name="divider">#FF2A2E38</color>
     <color name="danger">#FFE5484D</color>
+    <!-- 书架状态标记：未读 / 在看 / 已读完 -->
+    <color name="shelf_none">#FF9AA0A6</color>
+    <color name="shelf_reading">#FF34DB55</color>
+    <color name="shelf_done">#FFF5C542</color>
 </resources>

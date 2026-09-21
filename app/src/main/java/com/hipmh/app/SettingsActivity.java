@@ -45,9 +45,10 @@ public class SettingsActivity extends AppCompatActivity {
             ver.setText("版本 1.0.0");
         }
 
-        findViewById(R.id.btnClearHistory).setOnClickListener(v -> {
-            new Store(SettingsActivity.this).clear("hist");
-            Toast.makeText(this, "历史已清空", Toast.LENGTH_SHORT).show();
+        // ★ v1.7：浏览历史功能已整体去掉，这里只保留书架清理
+        findViewById(R.id.btnClearFav).setOnClickListener(v -> {
+            new Store(SettingsActivity.this).clear("fav");
+            Toast.makeText(this, "书架已清空", Toast.LENGTH_SHORT).show();
         });
 
         TextView crash = findViewById(R.id.tvCrash);

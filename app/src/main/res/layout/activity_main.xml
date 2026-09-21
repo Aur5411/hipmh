@@ -36,6 +36,33 @@
 
     </LinearLayout>
 
+    <!--
+      ★ v1.10.0：独立的「阅读器窗口」（第二个 WebView，悬浮在主 WebView 之上）。
+      用户明确要求：点进漫画开始阅读时，相当于「新开一个浏览器窗口」，
+      之后的上一章 / 下一章都在这个窗口里完成，返回 = 关闭这个窗口。
+
+      为什么要这么改（v1.9.3 的两个遗留问题都源于此）：
+        站点跳转链路是  详情页 → 中间跳转页(m.hipmh.com/chapter/go?...)
+                              → 真正的阅读器(reader.hipmh.top/chapter/<b64>)
+        如果始终用**同一个** WebView，这条链路会整体压进同一个历史栈：
+          ① 从阅读页 loadUrl(详情页) 不是「回退」而是「新开一格」，
+             所以再按一次返回，goBack() 就退到了历史里的**阅读页**那一格
+             —— 表现就是「返回详情页后，再返回又是漫画阅读页」。
+          ② 为了绕开 ①，返回逻辑只能不停 loadUrl，主历史栈永远理不清。
+
+        改成独立的 rdWeb 之后：
+          主 WebView 停在详情页**原地不动**（历史栈干净），
+          阅读器的一切（含上下章）都发生在 rdWeb 内部，
+          「返回」= 隐藏 rdWeb → 原地露出详情页；再返回 = 主 WebView 自己的历史 → 首页。
+      本质上这就是用户说的「新开一个窗口、返回即关窗」。
+    -->
+    <WebView
+        android:id="@+id/rdWeb"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="@color/bg"
+        android:visibility="gone" />
+
     <LinearLayout
         android:id="@+id/errorView"
         android:layout_width="match_parent"

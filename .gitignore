@@ -24,3 +24,7 @@ keystore.properties
 captures/
 .externalNativeBuild/
 .cxx/
+
+# ===== 本机测试/构建日志 =====
+_jscheck.txt
+*.log

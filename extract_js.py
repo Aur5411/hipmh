@@ -16,25 +16,40 @@ java = io.open(SRC, encoding='utf-8').read()
 
 
 def find_field(name):
-    """返回 name 字段声明到其结束分号的正文（跳过字符串内部）"""
+    """返回 name 字段声明到其结束分号的正文。
+
+    注意：必须先剥掉 Java 注释再数分号 —— 注释里出现的 `；` 或 `;`
+    （例如中文说明里的分号）会被误判成字段结尾，导致抽取被截断
+    （v1.8 的 DRAWER_JS 就踩过这个坑）。字符串内部的分号仍然要忽略。
+    """
     m = re.search(r'String\s+' + re.escape(name) + r'\s*=\s*', java)
     if not m:
         return None
     i = m.end()
-    depth_str = False
-    while i < len(java):
+    n = len(java)
+    while i < n:
         c = java[i]
-        if depth_str:
-            if c == '\\':
-                i += 2
-                continue
-            if c == '"':
-                depth_str = False
-            i += 1
-            continue
+        # 跳过字符串字面量（含转义），里面的分号不算
         if c == '"':
-            depth_str = True
             i += 1
+            while i < n:
+                if java[i] == '\\':
+                    i += 2
+                    continue
+                if java[i] == '"':
+                    i += 1
+                    break
+                i += 1
+            continue
+        # 跳过 // 行注释
+        if c == '/' and i + 1 < n and java[i + 1] == '/':
+            j = java.find('\n', i)
+            i = n if j < 0 else j + 1
+            continue
+        # 跳过 /* */ 块注释
+        if c == '/' and i + 1 < n and java[i + 1] == '*':
+            j = java.find('*/', i + 2)
+            i = n if j < 0 else j + 2
             continue
         if c == ';':
             return java[m.end():i]
@@ -160,8 +175,25 @@ targets['hip_clean'] = java_str_to_js(b).replace('__AD__', 'true')
 b = find_field('GUARD_JS')
 targets['hip_guard'] = java_str_to_js(b)
 
-b = find_field('HIST_JS')
-targets['hip_hist'] = java_str_to_js(b)
+# HIST_JS 在 v1.7 已废弃（浏览记录下线），不再抽取
+# b = find_field('HIST_JS')
+# targets['hip_hist'] = java_str_to_js(b)
+
+# ★ v1.6：作品详情 / 阅读器页的收藏按钮脚本
+b = find_field('FAV_JS')
+targets['hip_fav'] = java_str_to_js(b)
+
+# ★ v1.8：把站点右上角「更多」弹出的「閱讀記錄」抽屉改造成本地书架
+b = find_field('DRAWER_JS')
+targets['hip_drawer'] = java_str_to_js(find_method('String drawerJs() {') or '')
+
+# ★ v1.9：详情页封面图采集（回传原生，供书架列表显示封面）
+b = find_field('COVER_JS')
+targets['hip_cover'] = java_str_to_js(b)
+
+# ★ v2.0.0：详情页「继续阅读」按钮改造（阅读进度直达上次章节）
+b = find_field('DETAIL_PROGRESS_JS')
+targets['hip_detailprog'] = java_str_to_js(b)
 
 b = find_field('T2S_JS')
 targets['hip_t2s'] = java_str_to_js(b)
@@ -177,10 +209,10 @@ for name, js in targets.items():
     flag = 'OK ' if r.returncode == 0 else 'ERR'
     if r.returncode != 0:
         ok = False
-    print('%-11s %s len=%-6d %s' % (name, flag, len(js), r.stderr.strip()[:160]))
+    print('%-11s %s len=%-6d %s' % (name, flag, len(js), r.stderr.strip()[:200]))
 
 # 打印关键正则，肉眼核对中文是否正常
-for name in ('hip_clean', 'hip_hist'):
+for name in ('hip_clean',):
     js = targets[name]
     m = re.search(r'var LB=(/[^;]*?/);', js)
     print(name, 'LB =', m.group(1) if m else '(none)')
